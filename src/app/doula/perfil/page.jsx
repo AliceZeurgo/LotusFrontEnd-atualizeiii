@@ -244,6 +244,8 @@ export default function Home() {
             </div>
           </div>
 
+
+{/* MODAL EDITAR */}
           <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
 
           {isModalOpen && (
