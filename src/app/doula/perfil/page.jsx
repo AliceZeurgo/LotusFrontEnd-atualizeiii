@@ -249,7 +249,7 @@ export default function Home() {
           <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
 
           {isModalOpen && (
-            <div className="bg-zinc-950 fixed inset-0 flex items-center justify-center z-50 bg-opacity-25">
+            <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-25">
               <div className="bg-zinc-100 rounded-lg px-12 w-11/12 md:w-1/2 max-h-[80vh] overflow-y-auto">
                 <h2 className="text-lg font-ABeeZee text-gray-3 mb-4">Editar Perfil</h2>
                 <div className="flex items-start gap-4 mb-4">
