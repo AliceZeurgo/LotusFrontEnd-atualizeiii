@@ -26,15 +26,54 @@ import { useState, useEffect } from "react";
 // Estilo do calendário
 import "@/../src/styles/Calendar.css";
 
+// Componente do Modal
+const Modal = ({ isOpen, onClose, onSubmit, error, success, setTitle, setDate, setTime }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
+      <div className="bg-white p-6 rounded-lg w-96">
+        <h3 className="text-lg font-semibold">Adicionar Evento</h3>
+        {error && <p className="text-red-500">{error}</p>}
+        {success && <p className="text-green-500">{success}</p>}
+        <div className="flex flex-col gap-4 mt-4">
+          <input
+            type="text"
+            placeholder="Título do evento"
+            onChange={(e) => setTitle(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <input
+            type="date"
+            onChange={(e) => setDate(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <input
+            type="time"
+            onChange={(e) => setTime(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <button onClick={onSubmit} className="bg-pink-3 text-white px-4 py-2 rounded">
+            Criar Evento
+          </button>
+          <button onClick={onClose} className="bg-gray-200 text-black px-4 py-2 rounded">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
-  const [date, setDate] = useState(null); // Inicializa com null para evitar erro de hidratação
-  const [events, setEvents] = useState([]); // Eventos do servidor e locais
-  const [eventTitle, setEventTitle] = useState(''); // Título do evento
-  const [eventDate, setEventDate] = useState(''); // Data do evento
-  const [eventTime, setEventTime] = useState(''); // Horário do evento
-  const [isModalOpen, setIsModalOpen] = useState(false); // Estado do modal
-  const [error, setError] = useState(null); // Estado para armazenar erros
-  const [success, setSuccess] = useState(null); // Estado para armazenar mensagens de sucesso
+  const [date, setDate] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const apiUrl = "https://lotus-back-end.onrender.com/v1/Lotus/agenda";
 
@@ -42,86 +81,85 @@ export default function Home() {
   const fetchEvents = async () => {
     try {
       const response = await axios.get(apiUrl);
-      setEvents(response.data.agendaDados || []); // Atualiza com eventos da API
+      setEvents(response.data.agendaDados || []);
     } catch (error) {
       console.error("Erro ao buscar eventos:", error);
       setError("Falha ao carregar eventos.");
     }
   };
 
+  // Validação dos campos do evento
+  const validateEvent = () => {
+    if (!eventTitle.trim()) {
+      setError("O título do evento é obrigatório.");
+      return false;
+    }
+    if (!eventDate) {
+      setError("A data do evento é obrigatória.");
+      return false;
+    }
+    if (!eventTime) {
+      setError("O horário do evento é obrigatório.");
+      return false;
+    }
+    return true;
+  };
+
   // Função para criar um evento
   const createEvent = async () => {
-    if (eventTitle && eventDate && eventTime) {
-      try {
-        console.log("Enviando dados:", {
-          descricao_calendario: eventTitle,
-          data_calendario: eventDate,
-          horario_calendario: eventTime,
-          usuario_calendario_id: 1, // ID fixo do usuário
-        });
+    if (!validateEvent()) return;
 
-        // Criação do evento na API
-        const response = await axios.post(apiUrl, {
-          descricao_calendario: eventTitle,
-          data_calendario: eventDate,
-          horario_calendario: eventTime,
-          usuario_calendario_id: 1, // ID fixo do usuário
-        });
+    try {
+      const response = await axios.post(apiUrl, {
+        descricao_calendario: eventTitle,
+        data_calendario: eventDate,
+        horario_calendario: eventTime,
+        usuario_calendario_id: 1, // ID fixo do usuário
+      });
 
-        // Verifica se a resposta é bem-sucedida
-        if (response.status === 200) {
-          console.log("Evento criado com sucesso:", response.data);
+      if (response.status === 200) {
+        setEventTitle('');
+        setEventDate('');
+        setEventTime('');
+        setSuccess("Evento criado com sucesso!");
+        setTimeout(() => setSuccess(null), 5000);
 
-          // Adiciona o evento à lista local
-          const newEvent = {
-            descricao_calendario: eventTitle,
-            data_calendario: eventDate,
-            horario_calendario: eventTime,
-          };
-          setEvents(prevEvents => [...prevEvents, newEvent]);
-
-          // Limpa os campos do formulário
-          setEventTitle('');
-          setEventDate('');
-          setEventTime('');
-
-          // Exibe mensagem de sucesso
-          setSuccess("Evento criado com sucesso!");
-
-          // Fecha o modal
-          setIsModalOpen(false);
-        } else {
-          console.error("Erro ao criar evento:", response);
-          setError("Falha ao criar evento.");
-        }
-      } catch (error) {
-        console.error("Erro ao criar evento:", error);
-        if (error.response) {
-          // Se a resposta foi recebida mas com erro
-          setError("Erro ao criar evento: " + error.response.data.message);
-        } else {
-          // Se o erro foi de rede ou algo não relacionado à resposta da API
-          setError("Erro desconhecido ao criar evento.");
-        }
+        fetchEvents();
+        setIsModalOpen(false);
       }
-    } else {
-      setError("Por favor, preencha todos os campos.");
+    } catch (error) {
+      setError("Erro ao criar evento.");
+      setTimeout(() => setError(null), 5000);
     }
   };
 
-  // Função para abrir o modal
+  // Função para abrir/fechar modal
   const openModal = () => setIsModalOpen(true);
-
-  // Função para fechar o modal
   const closeModal = () => setIsModalOpen(false);
 
-  // Busca inicial dos eventos (apenas no lado do cliente)
+  // Busca inicial dos eventos
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setDate(new Date()); // Define a data inicial no cliente
+      setDate(new Date());
       fetchEvents();
     }
   }, []);
+
+  const menuItems = [
+    { icon: LogoHome, label: "Home" },
+    { icon: LogoMonitoramento, label: "Monitoramento" },
+    { icon: LogoConteudo, label: "Conteúdo" },
+    { icon: LogoChat, label: "Chat" },
+    { icon: LogoGaleria, label: "Galeria" },
+    { icon: LogoPerfil, label: "Perfil" },
+  ];
+
+  // Ordena eventos por data
+  const sortedEvents = [...events].sort((a, b) => {
+    const dateA = new Date(a.data_calendario);
+    const dateB = new Date(b.data_calendario);
+    return dateA - dateB;
+  });
 
   return (
     <div className="flex h-screen">
@@ -132,10 +170,16 @@ export default function Home() {
           <h1 className="font-ABeeZee text-pink-3 font-light text-3xl">Lótus</h1>
         </div>
         <nav className="flex flex-col gap-10 h-[80%]">
-          {[{ icon: LogoHome, label: "Home" }, { icon: LogoMonitoramento, label: "Monitoramento" }, { icon: LogoConteudo, label: "Conteúdo" }, { icon: LogoChat, label: "Chat" }, { icon: LogoGaleria, label: "Galeria" }, { icon: LogoPerfil, label: "Perfil" }].map((item, idx) => (
-            <a key={idx} href="#" className="flex flex-row items-center p-2 gap-2 hover:bg-orange-degrade-3 transition duration-200 rounded-xl group">
+          {menuItems.map((item, idx) => (
+            <a
+              key={idx}
+              href="#"
+              className="flex flex-row items-center p-2 gap-2 hover:bg-orange-degrade-3 transition duration-200 rounded-xl group"
+            >
               <Image src={item.icon} alt={item.label.toLowerCase()} className="size-8" />
-              <h1 className="font-Inter font-normal text-gray-3 text-lg group-hover:text-white">{item.label}</h1>
+              <h1 className="font-Inter font-normal text-gray-3 text-lg group-hover:text-white">
+                {item.label}
+              </h1>
             </a>
           ))}
         </nav>
@@ -164,73 +208,40 @@ export default function Home() {
         {/* Coluna do calendário e eventos */}
         <div className="h-full p-6 rounded-[40px]">
           <Calendario events={events} />
-          {/* Lista de eventos abaixo do calendário */}
           <div className="mt-6">
             <h3 className="font-ABeeZee text-black font-medium mb-4">Eventos:</h3>
             <ul className="flex flex-col gap-4">
-              {events.map((event, idx) => (
+              {sortedEvents.map((event, idx) => (
                 <li key={idx} className="bg-gray-200 p-4 rounded-md">
-                  <p className="font-ABeeZee text-black">📅 {event.data_calendario}</p>
-                  <p className="font-Inter text-gray-600">⏰ {event.horario_calendario}</p>
+                  <p className="font-ABeeZee text-black">📅 {event.data_calendario_formatada}</p>
+                  <p className="font-Inter text-gray-600">⏰ {event.horario_formatado}</p>
                   <p className="font-Inter text-gray-900">🔖 {event.descricao_calendario}</p>
                 </li>
               ))}
             </ul>
           </div>
         </div>
-
-        {/* Modal de Adicionar Evento */}
-        {isModalOpen && (
-          <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-6 rounded-lg w-96">
-              <h3 className="text-lg font-semibold">Adicionar Evento</h3>
-              {error && <p className="text-red-500">{error}</p>}
-              {success && <p className="text-green-500">{success}</p>}
-              <div className="flex flex-col gap-4 mt-4">
-                <input
-                  type="text"
-                  placeholder="Título do evento"
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  className="border p-2 rounded"
-                />
-                <input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  className="border p-2 rounded"
-                />
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="border p-2 rounded"
-                />
-                <button
-                  onClick={createEvent}
-                  className="bg-pink-3 text-white p-2 rounded mt-4"
-                >
-                  Criar Evento
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="bg-gray-300 text-black p-2 rounded mt-4"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Botão para abrir modal */}
-        <button
-          onClick={openModal}
-          className="fixed bottom-6 right-6 bg-pink-3 p-4 rounded-full text-white"
-        >
-          <IoAdd size={24} />
-        </button>
       </main>
+
+      {/* Botão de adicionar evento */}
+      <div
+        className="fixed bottom-10 right-10 bg-pink-3 text-white p-4 rounded-full shadow-lg cursor-pointer"
+        onClick={openModal}
+      >
+        <IoAdd size={30} />
+      </div>
+
+      {/* Modal para adicionar evento */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onSubmit={createEvent}
+        error={error}
+        success={success}
+        setTitle={setEventTitle}
+        setDate={setEventDate}
+        setTime={setEventTime}
+      />
     </div>
   );
 }
